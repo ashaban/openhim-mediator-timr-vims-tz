@@ -6,7 +6,8 @@ const medUtils = require('openhim-mediator-utils')
 const winston = require('winston')
 const moment = require("moment")
 const TImR = require('./timr')
-const DHIS2 = require('./dhis2')
+const VIMS = require('./vims')
+
 // Config
 var config = {} // this will vary depending on whats set in openhim-core
 const apiConf = require('./config/config')
@@ -33,7 +34,7 @@ function setupApp () {
 
   app.get('/sync', (req, res) => {
     const timr = TImR(config.timr,config.timrOauth2)
-    const dhis2 = DHIS2(config.dhis2)
+    const vims = VIMS(config.vims)
     req.timestamp = new Date()
     let orchestrations = []
 
@@ -59,17 +60,18 @@ function setupApp () {
       })
       res.end(response)
     }
-    var LAST_MONTH = moment().format('YYYY')+'0'+(moment().format('MM')-1)
-    dhis2.getDhisDataMapping((err, dhisDataMapping) => {
+    vims.getImmunDataElmnts ((err,vimsImmDataElmnts) => {
       timr.getAccessToken((err, res, body) => {
-        winston.info(`Fetching Immunization Data From ${config.timr.url}`)
-        dhisDataMapping.forEach((dhisData,index) => {
-          var facilityid = ""
-          timr.getImmunizationData(JSON.parse(body).access_token,dhisData,facilityid, (err,value,url) => {
-            dhis2.saveImmunizationData(dhisData.dataelement,dhisData.catoptcomb,LAST_MONTH,'brYtvXITla3',value,(err,res,body) => {
-              winston.error("Total===>"+value+" "+ JSON.stringify(body))
+        var access_token = JSON.parse(body).access_token
+        var facilityid = ""//need to loop through all facilities
+        vims.getPeriod(19132,(periods)=>{//use fac 19132 (has two per ids) or 14133 (has an error) or 16452 (has one per,index null)
+          if(periods.length > 0) {
+            vimsImmDataElmnts.forEach ((vimsVaccCode) => {
+              timr.getImmunizationData(access_token,vimsVaccCode.code,facilityid,(err,value) => {
+
+              })
             })
-          })
+          }
         })
       })
     })
