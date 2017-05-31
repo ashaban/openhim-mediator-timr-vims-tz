@@ -2,9 +2,7 @@
 const winston = require('winston')
 const request = require('request')
 const URI = require('urijs')
-const _ = require('underscore')
 const moment = require('moment')
-const fs = require("fs");
 const immDataElements = require('./terminologies/vims-immunization-valuesets.json')
 
 module.exports = function (cnf) {
@@ -103,7 +101,6 @@ module.exports = function (cnf) {
               var username = config.username
               var password = config.password
               var auth = "Basic " + new Buffer(username + ":" + password).toString("base64");
-              var json_data = fs.readFileSync("vims_report.json");
               var options = {
                 url: url.toString(),
                 headers: {

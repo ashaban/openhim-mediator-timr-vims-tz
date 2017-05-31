@@ -1,11 +1,8 @@
 'use strict'
 const winston = require('winston')
 const request = require('request')
-const _ = require('underscore')
 const URI = require('urijs')
 const moment = require("moment")
-const promise = require('promise')
-const async = require('async')
 const catOptOpers = require('./config/categoryOptionsOperations.json')
 const timrVimsImm = require('./terminologies/timr-vims-immunization-conceptmap.json')
 
