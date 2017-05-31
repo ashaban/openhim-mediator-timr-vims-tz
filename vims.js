@@ -3,6 +3,8 @@ const winston = require('winston')
 const request = require('request')
 const URI = require('urijs')
 const _ = require('underscore')
+const moment = require('moment')
+const fs = require("fs");
 const immDataElements = require('./terminologies/vims-immunization-valuesets.json')
 
 module.exports = function (cnf) {
@@ -38,7 +40,9 @@ module.exports = function (cnf) {
         if(body.indexOf('error') == -1) {
           body = JSON.parse(body)
           body.periods.forEach ((period,index)=>{
-            if(period.id > 0)
+            var systemMonth = moment(period.periodName, 'MMM YYYY','en').format('MM')
+            var prevMonth = moment().subtract(1,'month').format('MM')
+            if(period.id > 0 & systemMonth == prevMonth)
             periods.push({'id':period.id,'periodName':period.periodName})
             if(index == body.periods.length-1)
             callback(periods)
@@ -47,7 +51,6 @@ module.exports = function (cnf) {
         else {
           callback(periods)
         }
-
       })
     },
 
@@ -61,8 +64,65 @@ module.exports = function (cnf) {
       })
     },
 
-    saveImmunizationData: function (vimsVaccCode) {
+    getReport: function (id,callback) {
+      var url = URI(config.url).segment('rest-api/ivd/get/'+id+'.json')
+      var username = config.username
+      var password = config.password
+      var auth = "Basic " + new Buffer(username + ":" + password).toString("base64");
+      var options = {
+        url: url.toString(),
+        headers: {
+          Authorization: auth
+        }
+      }
 
+      request.get(options, (err, res, body) => {
+        if (err) {
+          return callback(err)
+        }
+        callback(JSON.parse(body))
+      })
+    },
+
+    saveImmunizationData: function (periods,values,vimsVaccCode,dose,callback) {
+      periods.forEach ((period) => {
+        var periodId = period.id
+        if(vimsVaccCode == '2413')
+        var doseid = dose.vimsid1
+        else
+        var doseid = dose.vimsid
+        this.getReport (periodId,(report) => {
+          report.report.coverageLineItems.forEach((coverageLineItems,index) =>{
+            if(coverageLineItems.productId == vimsVaccCode & coverageLineItems.doseId == doseid) {
+              report.report.coverageLineItems[index].regularMale = values.regularMale
+              report.report.coverageLineItems[index].regularFemale = values.regularFemale
+              report.report.coverageLineItems[index].outreachMale = values.outreachMale
+              report.report.coverageLineItems[index].outreachFemale = values.outreachFemale
+              var updatedReport = report.report
+              var url = URI(config.url).segment('rest-api/ivd/save')
+              var username = config.username
+              var password = config.password
+              var auth = "Basic " + new Buffer(username + ":" + password).toString("base64");
+              var json_data = fs.readFileSync("vims_report.json");
+              var options = {
+                url: url.toString(),
+                headers: {
+                  'Content-Type': 'application/json',
+                  Authorization: auth
+                },
+                json:updatedReport
+              }
+              request.put(options, function (err, res, body) {
+                if (err) {
+                  return callback(err)
+                }
+                callback(err)
+              })
+            }
+          })
+
+        })
+      })
     }
   }
 }

@@ -17,8 +17,8 @@ const mediatorConfig = require('./config/mediator')
 const https = require('https')
 const http = require('http')
 
-https.globalAgent.maxSockets = 5
-http.globalAgent.maxSockets = 5
+https.globalAgent.maxSockets = 1
+http.globalAgent.maxSockets = 1
 
 // Logging setup
 winston.remove(winston.transports.Console)
@@ -60,6 +60,16 @@ function setupApp () {
       })
       res.end(response)
     }
+
+    function getDosesMapping (callback) {
+      var dosesMapping = []
+      dosesMapping.push({'name': 'Dose 0','timrid': '0','vimsid': '0','vimsid1': '1'})
+      dosesMapping.push({'name': 'Dose 1','timrid': '1','vimsid': '1','vimsid1': '2'})
+      dosesMapping.push({'name': 'Dose 2','timrid': '2','vimsid': '2','vimsid1': '3'})
+      dosesMapping.push({'name': 'Dose 3','timrid': '3','vimsid': '3','vimsid1': '4'})
+      callback(dosesMapping)
+    }
+
     vims.getImmunDataElmnts ((err,vimsImmDataElmnts) => {
       timr.getAccessToken((err, res, body) => {
         var access_token = JSON.parse(body).access_token
@@ -67,8 +77,14 @@ function setupApp () {
         vims.getPeriod(19132,(periods)=>{//use fac 19132 (has two per ids) or 14133 (has an error) or 16452 (has one per,index null)
           if(periods.length > 0) {
             vimsImmDataElmnts.forEach ((vimsVaccCode) => {
-              timr.getImmunizationData(access_token,vimsVaccCode.code,facilityid,(err,value) => {
+              getDosesMapping((doses) =>{
+                doses.forEach((dose) => {
+                  timr.getImmunizationData(access_token,vimsVaccCode.code,dose,facilityid,(err,values) => {
+                    vims.saveImmunizationData(periods,values,vimsVaccCode.code,dose,(err) =>{
 
+                    })
+                  })
+                })
               })
             })
           }

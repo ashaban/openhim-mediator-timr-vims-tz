@@ -4,6 +4,8 @@ const request = require('request')
 const _ = require('underscore')
 const URI = require('urijs')
 const moment = require("moment")
+const promise = require('promise')
+const async = require('async')
 const catOptOpers = require('./config/categoryOptionsOperations.json')
 const timrVimsImm = require('./terminologies/timr-vims-immunization-conceptmap.json')
 
@@ -41,17 +43,18 @@ module.exports = function (timrcnf,oauthcnf) {
       })
     },
 
-    getImmunizationData: function (access_token,vimsVaccCode,facilityid,callback) {
+    getImmunizationData: function (access_token,vimsVaccCode,dose,facilityid,callback) {
       this.getVaccineCode(vimsVaccCode,(timrVaccCode)=> {
         if(timrVaccCode == "") {
           return
         }
         var totalValues = 0
         var queryPar = []
-        queryPar.push({'name': 'regularMale','fhirQuery':'patient.gender=male&in-catchment=false'})
-        queryPar.push({'name': 'regularFemale','fhirQuery':'patient.gender=female&in-catchment=false'})
-        queryPar.push({'name': 'outreachMale','fhirQuery':'patient.gender=male&in-catchment=true'})
-        queryPar.push({'name': 'outreachFemale','fhirQuery':'patient.gender=female&in-catchment=true'})
+        var values = {}
+        queryPar.push({'name': 'regularMale','fhirQuery':'patient.gender=male&in-catchment=false&dose-sequence='+dose.timrid})
+        queryPar.push({'name': 'regularFemale','fhirQuery':'patient.gender=female&in-catchment=false&dose-sequence='+dose.timrid})
+        queryPar.push({'name': 'outreachMale','fhirQuery':'patient.gender=male&in-catchment=true&dose-sequence='+dose.timrid})
+        queryPar.push({'name': 'outreachFemale','fhirQuery':'patient.gender=female&in-catchment=true&dose-sequence='+dose.timrid})
         var vaccineStartDate = moment().subtract(1,'month').startOf('month').format('YYYY-MM-DD')
         var vaccineEndDate = moment().subtract(1,'month').endOf('month').format('YYYY-MM-DD')
         queryPar.forEach ((query,index) => {
@@ -59,7 +62,6 @@ module.exports = function (timrcnf,oauthcnf) {
           .segment('Immunization')
           +'?' + query.fhirQuery + '&vaccine-code=' + timrVaccCode + '&date=ge' + vaccineStartDate + '&date=le' + vaccineEndDate + '&_format=json&_count=0'
           .toString()
-
           var options = {
             url: url.toString(),
             headers: {
@@ -71,9 +73,10 @@ module.exports = function (timrcnf,oauthcnf) {
               return callback(err)
             }
             var value = JSON.parse(body).total
-            winston.error("Values===>"+value+" URL===>"+url)
+            var queryName = query.name
+            values[queryName] = value
             if(queryPar.length-1 == index) {
-              //callback(err,totalValues,url)
+              return callback('',values)
             }
           })
         })
